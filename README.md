@@ -16,4 +16,4 @@ The original DiT model architecture is as follows:
 
 We just replace the DiT Block to DiR Block.
 
-![DiR](DIRWKVBlock.png)
+![alt text](DiRWKVBlock.png)
