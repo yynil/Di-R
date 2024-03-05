@@ -16,4 +16,4 @@ The original DiT model architecture is as follows:
 
 We just replace the DiT Block to DiR Block.
 
-![alt text](DiRWKVBlock.png)
+![alt text](https://github.com/yynil/Di-R/blob/main/DiRWKVBlock.png)
