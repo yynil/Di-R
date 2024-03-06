@@ -12,13 +12,13 @@ import threading
 class ZipFastDataset(Dataset):
     def __init__(self, input_dir,transforms=None,tokenizer=None,max_len=255,pad_id=0,eos_id=1):
         self.input_dir = input_dir
-        self.init_files()
         self.transforms = transforms
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.pad_id = pad_id
         self.eos_id = eos_id
-
+        self.inited = False
+        
 
     def init_files(self):
         import time
@@ -40,14 +40,16 @@ class ZipFastDataset(Dataset):
                     current_file_names.append(filename)
             self.all_file_names.append(current_file_names)
         print("init_all_file_names time:", time.time() - elapsed, ' file length = ', self.length)
-        self.zip_reader_locks = {}
-        for i in range(len(self.zip_files)):
-            self.zip_reader_locks[i] = threading.Lock()
+        self.inited = True
     def __len__(self):
+        if not self.inited:
+            self.init_files()
         return self.length
 
     def __getitem__(self, idx):
         #find the index of the file
+        if not self.inited:
+            self.init_files()
         current_file_idx = 0
         while idx >= len(self.all_file_names[current_file_idx]):
             idx -= len(self.all_file_names[current_file_idx])
@@ -55,15 +57,10 @@ class ZipFastDataset(Dataset):
         #get the file
         file_name = None
         try:
-            lock = self.zip_reader_locks[current_file_idx]
             file_name = self.all_file_names[current_file_idx][idx]
-            lock.acquire()
             content = self.zip_readers[current_file_idx].read_file_in_zip(file_name)
-            lock.release()
             base_name = file_name.split('.')[0]
-            lock.acquire()
             text_file = self.zip_readers[current_file_idx].read_file_in_zip(base_name + '.txt')
-            lock.release()
             text_file = str(bytearray(text_file),'utf-8')
             features = self.tokenizer.encode(text_file)
             image = Image.open(io.BytesIO(bytearray(content)))
