@@ -1,0 +1,26 @@
+[[34m2024-03-07 01:07:13[0m] Experiment directory created at results/DiRwkv_XL_2
+[[34m2024-03-07 01:07:38[0m] DiT Parameters: 853,116,960
+[[34m2024-03-07 01:08:23[0m] Dataset contains 1,044,887 images (/media/yueyulin/TOUROS/images/laion400m_zip/batch0)
+[[34m2024-03-07 01:08:23[0m] Training for 1400 epochs...
+[[34m2024-03-07 01:11:28[0m] Experiment directory created at results/DiRwkv_XL_2
+[[34m2024-03-07 01:11:54[0m] DiT Parameters: 853,116,960
+[[34m2024-03-07 01:12:39[0m] Dataset contains 1,044,887 images (/media/yueyulin/TOUROS/images/laion400m_zip/batch0)
+[[34m2024-03-07 01:12:39[0m] Training for 1400 epochs...
+[[34m2024-03-07 01:18:10[0m] Done!
+[[34m2024-03-07 01:19:03[0m] Experiment directory created at results/DiRwkv_XL_2
+[[34m2024-03-07 01:19:29[0m] DiT Parameters: 853,116,960
+[[34m2024-03-07 01:20:13[0m] Dataset contains 1,044,887 images (/media/yueyulin/TOUROS/images/laion400m_zip/batch0)
+[[34m2024-03-07 01:20:13[0m] Training for 1400 epochs...
+[[34m2024-03-07 01:21:23[0m] Experiment directory created at results/DiRwkv_XL_2
+[[34m2024-03-07 01:21:49[0m] DiT Parameters: 853,116,960
+[[34m2024-03-07 01:22:34[0m] Dataset contains 1,044,887 images (/media/yueyulin/TOUROS/images/laion400m_zip/batch0)
+[[34m2024-03-07 01:22:34[0m] Training for 1400 epochs...
+[[34m2024-03-07 01:27:21[0m] Experiment directory created at results/DiRwkv_XL_2
+[[34m2024-03-07 01:27:46[0m] DiT Parameters: 853,116,960
+[[34m2024-03-07 01:28:31[0m] Dataset contains 1,044,887 images (/media/yueyulin/TOUROS/images/laion400m_zip/batch0)
+[[34m2024-03-07 01:28:31[0m] Training for 1400 epochs...
+[[34m2024-03-07 01:33:11[0m] Experiment directory created at results/DiRwkv_XL_2
+[[34m2024-03-07 01:33:37[0m] DiT Parameters: 853,116,960
+[[34m2024-03-07 01:34:22[0m] Dataset contains 1,044,887 images (/media/yueyulin/TOUROS/images/laion400m_zip/batch0)
+[[34m2024-03-07 01:34:22[0m] Training for 1400 epochs...
+[[34m2024-03-07 01:35:28[0m] Done!

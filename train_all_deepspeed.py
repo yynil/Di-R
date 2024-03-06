@@ -43,6 +43,7 @@ from diffusion import create_diffusion
 from diffusers.models import AutoencoderKL
 import pytorch_lightning as pl
 import math
+from data.ZipFileDataset import ZipFastDataset
 
 
 #################################################################################
@@ -54,11 +55,12 @@ def update_ema(ema_model, model, decay=0.9999):
     """
     Step the EMA model towards the current model.
     """
-    ema_params = OrderedDict(ema_model.named_parameters())
-    model_params = OrderedDict(model.named_parameters())
-    for name, param in model_params.items():
-        if name in ema_params:
-            ema_params[name].mul_(decay).add_(param.data.to('cpu'), alpha=1 - decay)
+    pass
+    # ema_params = OrderedDict(ema_model.named_parameters())
+    # model_params = OrderedDict(model.named_parameters())
+    # for name, param in model_params.items():
+    #     if name in ema_params:
+    #         ema_params[name].mul_(decay).add_(param.data.to('cpu'), alpha=1 - decay)
 
 def requires_grad(model, flag=True):
     """
@@ -103,7 +105,7 @@ def center_crop_arr(pil_image, image_size):
     crop_x = (arr.shape[1] - image_size) // 2
     return Image.fromarray(arr[crop_y: crop_y + image_size, crop_x: crop_x + image_size])
 
-def save_trainable_parameters(model, ema,trainable_dir_output):
+def save_trainable_parameters(model, trainable_dir_output):
     print(f"save trainable parameters to {trainable_dir_output} ")
   
 
@@ -114,11 +116,6 @@ def save_trainable_parameters(model, ema,trainable_dir_output):
     torch.save(state_dict, save_path)
     print(f"save model parameters to {save_path}")
 
-    save_path = os.path.join(trainable_dir_output, 'ema_model.pth')
-    state_dict = {name: param.data for name, param in ema.named_parameters()}
-    torch.save(state_dict, save_path)
-    print(f"save ema parameters to {save_path}")
-
 #################################################################################
 #                                  Training Loop                                #
 #################################################################################
@@ -128,8 +125,6 @@ class YueyuTrainCallback(pl.Callback):
         super().__init__()
         self.args = args
 
-    def set_ema(self,ema):
-        self.ema = ema
 
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
         args = self.args
@@ -199,7 +194,7 @@ class YueyuTrainCallback(pl.Callback):
                 trainer.my_wandb = wandb
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        update_ema(self.ema, pl_module, decay=0.9999)
+        # update_ema(self.ema, pl_module, decay=0.9999)
         args = self.args
         token_per_step = args.ctx_len * args.real_bsz
         real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
@@ -240,7 +235,7 @@ class YueyuTrainCallback(pl.Callback):
             print(f'saving trainable to {args.trainable_dir_output} epoch {trainer.current_epoch}')
             output_dir = f"{args.trainable_dir_output}/epoch_{trainer.current_epoch}"
             os.makedirs(output_dir, exist_ok=True)
-            save_trainable_parameters(pl_module,self.ema,output_dir)
+            save_trainable_parameters(pl_module,output_dir)
             #torch.save(trainer.model.state_dict(), os.path.join(output_dir, 'model.pt'))
             if (args.epoch_begin + trainer.current_epoch) >= args.my_exit:
                 exit(0)
@@ -269,7 +264,7 @@ def main(args):
     model = DiRwkv_models[args.model](input_size=latent_size,deepspeed_offload=True)
     model.convert_bfloat16()
     # Note that parameter initialization is done within the DiT constructor
-    ema = deepcopy(model)  # Create an EMA of the model for use after training
+    # ema = deepcopy(model)  # Create an EMA of the model for use after training
     diffusion = create_diffusion(timestep_respacing="")  # default: 1000 steps, linear noise schedule
     vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-{args.vae}")
     logger.info(f"DiT Parameters: {sum(p.numel() for p in model.parameters()):,}")
@@ -287,10 +282,16 @@ def main(args):
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)
     ])
-    image_folder = os.path.join(args.data_path, "train2017")
-    captions_file = os.path.join(args.data_path, "coco_captions_train2017_texts.pkl")
-    # dataset = ImageFolder(args.data_path, transform=transform)
-    dataset = CustomTextDataset(image_folder, captions_file, transform)
+    if not args.is_zip:
+        image_folder = os.path.join(args.data_path, "train2017")
+        captions_file = os.path.join(args.data_path, "coco_captions_train2017_texts.pkl")
+        # dataset = ImageFolder(args.data_path, transform=transform)
+        dataset = CustomTextDataset(image_folder, captions_file, transform)
+    else:
+        rwkv_file = os.path.join(os.path.dirname(__file__), 'tokenizer','rwkv_vocab_v20230424.txt')
+        from tokenizer.rwkv_tokenizer import TRIE_TOKENIZER
+        tokenizer = TRIE_TOKENIZER(rwkv_file)
+        dataset = ZipFastDataset(args.data_path, tokenizer=tokenizer,transforms=transform)
     max_len = 128 
     def collate_fn(batch):
         images, input_ids = zip(*batch)
@@ -308,7 +309,7 @@ def main(args):
     loader = DataLoader(
         dataset,
         batch_size=int(args.global_batch_size),
-        shuffle=False,
+        shuffle=True,
         num_workers=args.num_workers,
         pin_memory=True,
         drop_last=True,
@@ -317,10 +318,10 @@ def main(args):
     logger.info(f"Dataset contains {len(dataset):,} images ({args.data_path})")
 
     # Prepare models for training:
-    update_ema(ema, model, decay=0)  # Ensure EMA is initialized with synced weights
+    # update_ema(ema, model, decay=0)  # Ensure EMA is initialized with synced weights
     model.train()  # important! This enables embedding dropout for classifier-free guidance
-    ema.eval()  # EMA model should always be in eval mode
-    requires_grad(ema, flag=False)  # EMA should not be updated by gradients
+    # ema.eval()  # EMA model should always be in eval mode
+    # requires_grad(ema, flag=False)  # EMA should not be updated by gradients
     requires_grad(vae, flag=False)  # VAE should not be updated by gradients
     model.set_vae(vae)
     model.set_diffusion(diffusion)
@@ -362,7 +363,7 @@ def main(args):
     call_back_args.my_timestamp = datetime.today().strftime("%Y-%m-%d-%H-%M-%S")
     call_back_args.my_exit = 150
     call_backs = [YueyuTrainCallback(call_back_args)]
-    call_backs[0].set_ema(ema)
+    # call_backs[0].set_ema(ema)
     device = 'cuda'
     trainer = Trainer(accelerator=device,strategy="deepspeed_stage_2_offload",devices='auto',num_nodes=1,precision='bf16-mixed',
             logger=call_back_args.logger,callbacks=call_backs,max_epochs=call_back_args.max_epochs,check_val_every_n_epoch=call_back_args.check_val_every_n_epoch,num_sanity_val_steps=call_back_args.num_sanity_val_steps,
@@ -374,17 +375,18 @@ def main(args):
 if __name__ == "__main__":
     # Default args here will train DiT-XL/2 with the hyperparameters we used in our paper (except training iters).
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=str, default='/media/yueyulin/KINGSTON/data/images/coco')
+    parser.add_argument("--data-path", type=str, default='/media/yueyulin/TOUROS/images/laion400m_zip/batch0')
     parser.add_argument("--results-dir", type=str, default="results")
-    parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-XL/2")
+    parser.add_argument("--model", type=str, choices=list(DiRwkv_models.keys()), default="DiRwkv_XL_2")
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=512)
     parser.add_argument("--epochs", type=int, default=1400)
-    parser.add_argument("--global-batch-size", type=int, default=5)
+    parser.add_argument("--global-batch-size", type=int, default=8)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
-    parser.add_argument("--num-workers", type=int, default=4)
+    parser.add_argument("--num-workers", type=int, default=1)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=50_000)
+    parser.add_argument("--is-zip", action="store_true",default=True)
     args = parser.parse_args()
     main(args)
 # Copyright (c) Meta Platforms, Inc. and affiliates.
