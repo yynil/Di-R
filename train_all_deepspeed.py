@@ -203,6 +203,11 @@ class YueyuTrainCallback(pl.Callback):
                 trainer.my_loss = outputs["loss"]
             else:
                 trainer.my_loss = trainer.my_loss_all.float().mean().item()
+            if real_step % args.log_every_n_steps == 0:
+                print(f"{real_step} {trainer.my_loss:.6f} {math.exp(trainer.my_loss):.4f}  {trainer.current_epoch}, now saving...")
+                output_dir = f"{args.trainable_dir_output}/epoch_{trainer.current_epoch}_step_{real_step}"
+                os.makedirs(output_dir, exist_ok=True)
+                save_trainable_parameters(pl_module,output_dir)
             trainer.my_loss_sum += trainer.my_loss
             trainer.my_loss_count += 1
             trainer.my_epoch_loss = trainer.my_loss_sum / trainer.my_loss_count
@@ -337,7 +342,7 @@ def main(args):
     logger.info(f"Training for {args.epochs} epochs...")
     call_back_args = copy.copy(model.args)
     call_back_args.check_val_every_n_epoch = int(1e20)
-    call_back_args.log_every_n_steps = int(1e20)
+    call_back_args.log_every_n_steps = 10000
     call_back_args.num_sanity_val_steps = 0
     call_back_args.enable_checkpointing = False
     call_back_args.accumulate_grad_batches = 1
@@ -349,7 +354,6 @@ def main(args):
     call_back_args.epoch_begin = 0
     call_back_args.epoch_count = 150
     call_back_args.epoch_save = 1
-    call_back_args.epoch_steps = 1000
     call_back_args.max_epochs = call_back_args.epoch_count
     call_back_args.my_exit_tokens = 0
     call_back_args.proj_dir = experiment_dir
@@ -359,6 +363,7 @@ def main(args):
     call_back_args.devices = 1
     call_back_args.trainable_dir_output = experiment_dir
     call_back_args.real_bsz = int(call_back_args.num_nodes) * int(call_back_args.devices) * call_back_args.micro_bsz
+    call_back_args.epoch_steps = len(dataset) // call_back_args.real_bsz
     from datetime import datetime
     call_back_args.my_timestamp = datetime.today().strftime("%Y-%m-%d-%H-%M-%S")
     call_back_args.my_exit = 150
@@ -383,7 +388,7 @@ if __name__ == "__main__":
     parser.add_argument("--global-batch-size", type=int, default=8)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
-    parser.add_argument("--num-workers", type=int, default=24)
+    parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=50_000)
     parser.add_argument("--is-zip", action="store_true",default=True)

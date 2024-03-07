@@ -7,7 +7,6 @@ from PIL import Image
 import io
 from PIL import Image
 import io
-import threading
 
 class ZipFastDataset(Dataset):
     def __init__(self, input_dir,transforms=None,tokenizer=None,max_len=255,pad_id=0,eos_id=1):
@@ -18,60 +17,56 @@ class ZipFastDataset(Dataset):
         self.pad_id = pad_id
         self.eos_id = eos_id
         self.inited = False
-        
+        self.length = 0
+        self.init_files()
 
     def init_files(self):
-        import time
-        elapsed = time.time()
-        self.zip_files = glob.glob(self.input_dir + '/*.zip')
-        print("init_files time:", time.time() - elapsed)
-        elapsed = time.time()
-        self.zip_readers = [ zip_fast_reader.ZipReader(file) for file in self.zip_files]
-        print("init_zip_readers time:", time.time() - elapsed)
-        self.length = 0
-        self.all_file_names = []
-        elapsed = time.time()
-        for zip_reader in self.zip_readers:
+        #print step and time in red
+        import datetime
+        print('\033[91m' + 'init_files' + '\033[0m', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        self.zip_files = glob.glob(self.input_dir + '**/*.zip')
+        non_txt_files = []
+        self.files_list = []
+        self.zip_readers_dict = {}
+        for zip_file in self.zip_files:
+            #print zip_file and time in green
+            print('\033[92m' + zip_file + '\033[0m', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            zip_reader = zip_fast_reader.ZipReader(zip_file)
+            #print read_filenames and time in blue
+            print('\033[94m' + 'read_filenames' + '\033[0m', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             filenames = zip_reader.read_filenames()
-            current_file_names = []
             for filename in filenames:
                 if filename.endswith('.jpg') or filename.endswith('.png') or filename.endswith('.jpeg'):
+                    last_dot_idx = filename.rfind('.')
+                    if last_dot_idx == -1:
+                        continue
+                    base_name = filename[:last_dot_idx]
+                    text_file_name = base_name + '.txt'
+                    if text_file_name not in filenames:
+                        non_txt_files.append((zip_file,filename))
+                        continue
                     self.length += 1
-                    current_file_names.append(filename)
-            self.all_file_names.append(current_file_names)
-        print("init_all_file_names time:", time.time() - elapsed, ' file length = ', self.length)
-        self.inited = True
+                    self.files_list.append((zip_file,filename,text_file_name))
+            #print zip_reader.close and time in blue
+            print('\033[94m' + 'close ' +zip_file + '\033[0m', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            del zip_reader
+
     def __len__(self):
-        if not self.inited:
-            self.init_files()
         return self.length
 
     def __getitem__(self, idx):
-        #find the index of the file
-        if not self.inited:
-            self.init_files()
-        current_file_idx = 0
-        while idx >= len(self.all_file_names[current_file_idx]):
-            idx -= len(self.all_file_names[current_file_idx])
-            current_file_idx += 1
-        #get the file
-        file_name = None
-        try:
-            file_name = self.all_file_names[current_file_idx][idx]
-            content = self.zip_readers[current_file_idx].read_file_in_zip(file_name)
-            base_name = file_name.split('.')[0]
-            text_file = self.zip_readers[current_file_idx].read_file_in_zip(base_name + '.txt')
-            text_file = str(bytearray(text_file),'utf-8')
-            features = self.tokenizer.encode(text_file)
-            image = Image.open(io.BytesIO(bytearray(content)))
-            if self.transforms:
-                image = self.transforms(image)
-            return image, features
-        except:
-            print("Error reading idx:",idx," current_file_idx:",current_file_idx," zipfile:",self.zip_files[current_file_idx])
-            print("Error reading file: " + file_name)
-            raise Exception("Error reading file: " + file_name+" in zipfile: "+self.zip_files[current_file_idx])
-    
+        #find the info of the file of the idx
+        zip_file, image_file, text_file = self.files_list[idx]
+        if zip_file not in self.zip_readers_dict:
+            self.zip_readers_dict[zip_file] = zip_fast_reader.ZipReader(zip_file)
+        zip_reader = self.zip_readers_dict[zip_file]
+        image_content =  zip_reader.read_file_in_zip(image_file)
+        text_content =  str(bytearray(zip_reader.read_file_in_zip(text_file)),'utf-8')
+        features = self.tokenizer.encode(text_content)
+        image = Image.open(io.BytesIO(bytearray(image_content)))
+        if self.transforms:
+            image = self.transforms(image)
+        return image, features
 
 if __name__ == '__main__':
     import sys
