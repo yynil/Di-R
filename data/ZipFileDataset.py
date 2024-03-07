@@ -21,7 +21,24 @@ class ZipFastDataset(Dataset):
         self.init_files()
 
     def init_files(self):
+        import os
         #print step and time in red
+        meta_file = self.input_dir + '/meta.txt'
+        if os.path.exists(meta_file):
+            try:
+                #print meta exists , load from meta_file and time in red
+                print('\033[91m' + 'meta exists , load from ' + meta_file + '\033[0m')
+                self.zip_readers_dict = {}
+                with open(meta_file,'r') as f:
+                    self.files_list = []
+                    for line in f:
+                        zip_file, image_file, text_file = line.strip().split('\t')
+                        self.files_list.append((zip_file, image_file, text_file))
+                    self.length = len(self.files_list)
+                return
+            except:
+                #print in red warning input_dir+'/meta.txt' is corrupted, reinit files
+                print('\033[91m' + 'warning ' + self.input_dir + '/meta.txt' + ' is corrupted, reinit files' + '\033[0m')
         import datetime
         print('\033[91m' + 'init_files' + '\033[0m', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.zip_files = glob.glob(self.input_dir + '**/*.zip')
@@ -50,6 +67,10 @@ class ZipFastDataset(Dataset):
             #print zip_reader.close and time in blue
             print('\033[94m' + 'close ' +zip_file + '\033[0m', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             del zip_reader
+        #write self.files_list to meta_file
+        with open(meta_file,'w') as f:
+            for zip_file, image_file, text_file in self.files_list:
+                f.write(zip_file + '\t' + image_file + '\t' + text_file + '\n')
 
     def __len__(self):
         return self.length
