@@ -20,8 +20,8 @@ pub fn tar_to_zip(input_dir: &str, output_dir: &str) -> io::Result<()> {
     let bar = ProgressBar::new(files_count as u64);
     bar.set_style(pb_style);
     
-    for entry in fs::read_dir(input_path)? {
-        let entry = entry?;
+    for entry_result in fs::read_dir(input_path)? {
+        let entry = entry_result?;
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("tar") {
             let tar_file = File::open(&path)?;

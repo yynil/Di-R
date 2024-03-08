@@ -61,7 +61,7 @@ def main(args):
     from tokenizer.rwkv_tokenizer import TRIE_TOKENIZER
     tokenizer = TRIE_TOKENIZER(tokenizer_file)
     print(tokenizer.encode('a bike in a parking lot'))
-    prompts = ['A black Honda motorcycle parked in front of a garage.','A cat in between two cars in a parking lot.','a motorcycle in a parking lot with a sky background','A bicycle replica with a clock as the front wheel.']
+    prompts = ['A black Honda motorcycle parked in front of a garage.','A cat in between two cars in a parking lot.','a motorcycle in a parking lot with a sky background','A blue glass bottle.']
     input_ids = [tokenizer.encode(prompt)+[1] for prompt in prompts]
     print(input_ids)
     n = len(input_ids)
