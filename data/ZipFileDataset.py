@@ -8,8 +8,9 @@ import io
 from PIL import Image
 import io
 import datetime
+import os
 class ZipFastDataset(Dataset):
-    def __init__(self, input_dir,transforms=None,tokenizer=None):
+    def __init__(self, input_dir,transforms=None,tokenizer=None,log=False):
         self.input_dir = input_dir
         self.transforms = transforms
         self.tokenizer = tokenizer
@@ -17,9 +18,10 @@ class ZipFastDataset(Dataset):
         self.length = 0
         self.init_files()
         self.last_access_time = dict()
-        self.most_open_files = 5
+        self.most_open_files = 240
         self.access_count = 0
         self.log_access_time = 10000
+        self.log = log
     def init_files(self):
         import os
         #print step and time in red
@@ -84,11 +86,13 @@ class ZipFastDataset(Dataset):
         if len(self.zip_readers_dict) <= self.most_open_files:
             return
         #print close_least_accessed_zip_file in red
-        print('\033[91m' + 'close_least_accessed_zip_file' + '\033[0m')
+        if self.log:
+            print('\033[91m' + 'close_least_accessed_zip_file' + '\033[0m')
         sorted_last_access_time = sorted(self.last_access_time.items(), key=lambda x: x[1])
         zip_file = sorted_last_access_time[0][0]
         #print close zip_file and time in red
-        print('\033[91m' + 'close zip_file: ' + zip_file + '\t' + 'time: ' + str(self.last_access_time[zip_file]) + '\033[0m')
+        if self.log:    
+            print('\033[91m' + 'close zip_file: ' + zip_file + '\t' + 'time: ' + str(self.last_access_time[zip_file]) + '\033[0m')
         #remove zip_file from zip_readers_dict and last_access_time
         del self.zip_readers_dict[zip_file]
         del self.last_access_time[zip_file]

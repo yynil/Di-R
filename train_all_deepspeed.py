@@ -266,7 +266,7 @@ def main(args):
     
     #setup rwkv args
 
-    model = DiRwkv_models[args.model](input_size=latent_size,deepspeed_offload=True)
+    model = DiRwkv_models[args.model](input_size=latent_size,deepspeed_offload=True,use_pos_emb=args.is_pos_emb)
     model.convert_bfloat16()
     # Note that parameter initialization is done within the DiT constructor
     # ema = deepcopy(model)  # Create an EMA of the model for use after training
@@ -298,6 +298,8 @@ def main(args):
         tokenizer = TRIE_TOKENIZER(rwkv_file)
         dataset = ZipFastDataset(args.data_path, tokenizer=tokenizer,transforms=transform)
     max_len = 128 
+    eos_id = 1
+    pad_id = 0
     def collate_fn(batch):
         images, input_ids = zip(*batch)
         current_max_len = 0
@@ -305,10 +307,10 @@ def main(args):
         for input_id in input_ids:
             if len(input_id) > max_len:
                 input_id = input_id[:max_len]
-            input_id.append(dataset.eos_id)
+            input_id.append(eos_id)
             current_max_len = max(current_max_len,len(input_id))
             new_ids.append(input_id)
-        new_ids = [x + [dataset.pad_id] * (current_max_len - len(x)) for x in new_ids]
+        new_ids = [x + [pad_id] * (current_max_len - len(x)) for x in new_ids]
         return torch.stack(images),torch.tensor(new_ids)
     
     loader = DataLoader(
@@ -380,7 +382,7 @@ def main(args):
 if __name__ == "__main__":
     # Default args here will train DiT-XL/2 with the hyperparameters we used in our paper (except training iters).
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=str, default='/media/yueyulin/TOUROS/images/laion400m_zip/batch0')
+    parser.add_argument("--data-path", type=str, default='/media/yueyulin/TOUROS/images/laion400m_zip')
     parser.add_argument("--results-dir", type=str, default="results")
     parser.add_argument("--model", type=str, choices=list(DiRwkv_models.keys()), default="DiRwkv_XL_2")
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=512)
@@ -392,6 +394,7 @@ if __name__ == "__main__":
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--ckpt-every", type=int, default=50_000)
     parser.add_argument("--is-zip", action="store_true",default=True)
+    parser.add_argument("--is-pos-emb",action="store_true",default=False)
     args = parser.parse_args()
     main(args)
 # Copyright (c) Meta Platforms, Inc. and affiliates.

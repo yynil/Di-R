@@ -85,7 +85,7 @@ class TimestepEmbedder(nn.Module):
 
 
 #################################################################################
-#                                 Core DiT Model                                #
+#                                 Core DiRwkv Model                                #
 #################################################################################
 
 class DiRWKVBlock(nn.Module):
@@ -155,6 +155,7 @@ class DiRWKV(pl.LightningModule):
         mlp_ratio=4.0,
         learn_sigma=True,
         class_dropout_prob=0.1,
+        use_pos_emb=False,
     ):
         super().__init__()
         self.args = args
@@ -173,7 +174,10 @@ class DiRWKV(pl.LightningModule):
         self.text_encoder = RwkvForSequenceEmbedding(text_encoder_rwkv)
         self.class_dropout_prob = class_dropout_prob
         num_patches = self.x_embedder.num_patches
-
+        if use_pos_emb:
+            self.pos_embed = nn.Parameter(torch.zeros(1, num_patches , hidden_size),requires_grad=False)
+        else:
+            self.pos_embed = None
         self.blocks = nn.ModuleList([
             DiRWKVBlock(hidden_size,args,layer_id, mlp_ratio=mlp_ratio) for layer_id in range(depth)
         ])
@@ -193,6 +197,11 @@ class DiRWKV(pl.LightningModule):
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
         self.apply(_basic_init)
+
+        # Initialize (and freeze) pos_embed by sin-cos embedding:
+        if self.pos_embed is not None:
+            pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.x_embedder.num_patches ** 0.5))
+            self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight.data
@@ -236,7 +245,10 @@ class DiRWKV(pl.LightningModule):
         t: (N,) tensor of diffusion timesteps
         y: (N,T) tensor of input_ids with pad(0) and eos(1) tokens
         """
-        x = self.x_embedder(x.bfloat16())   # (N, T, D), where T = H * W / patch_size ** 2
+        if self.pos_embed is None:
+            x = self.x_embedder(x.bfloat16())
+        else:
+            x = self.x_embedder(x.bfloat16()) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
         t = self.t_embedder(t)                   # (N, D)
         y_len = y.shape[1]
         batch = y.shape[0]
@@ -371,6 +383,59 @@ class DiRWKV(pl.LightningModule):
         # return ZeroOneAdam(optim_groups, lr=self.args.lr_init, betas=self.args.betas, eps=self.args.adam_eps, bias_correction=True, weight_decay=0, amsgrad=False, cuda_aware=False)
 
 
+#################################################################################
+#                   Sine/Cosine Positional Embedding Functions                  #
+#################################################################################
+# https://github.com/facebookresearch/mae/blob/main/util/pos_embed.py
+
+def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=0):
+    """
+    grid_size: int of the grid height and width
+    return:
+    pos_embed: [grid_size*grid_size, embed_dim] or [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
+    """
+    grid_h = np.arange(grid_size, dtype=np.float32)
+    grid_w = np.arange(grid_size, dtype=np.float32)
+    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
+    grid = np.stack(grid, axis=0)
+
+    grid = grid.reshape([2, 1, grid_size, grid_size])
+    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
+    if cls_token and extra_tokens > 0:
+        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
+    return pos_embed
+
+
+def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
+    assert embed_dim % 2 == 0
+
+    # use half of dimensions to encode grid_h
+    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
+
+    emb = np.concatenate([emb_h, emb_w], axis=1) # (H*W, D)
+    return emb
+
+
+def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
+    """
+    embed_dim: output dimension for each position
+    pos: a list of positions to be encoded: size (M,)
+    out: (M, D)
+    """
+    assert embed_dim % 2 == 0
+    omega = np.arange(embed_dim // 2, dtype=np.float64)
+    omega /= embed_dim / 2.
+    omega = 1. / 10000**omega  # (D/2,)
+
+    pos = pos.reshape(-1)  # (M,)
+    out = np.einsum('m,d->md', pos, omega)  # (M, D/2), outer product
+
+    emb_sin = np.sin(out) # (M, D/2)
+    emb_cos = np.cos(out) # (M, D/2)
+
+    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
+    return emb
 
 
 #################################################################################
