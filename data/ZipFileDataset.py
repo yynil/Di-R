@@ -9,13 +9,10 @@ from PIL import Image
 import io
 import datetime
 class ZipFastDataset(Dataset):
-    def __init__(self, input_dir,transforms=None,tokenizer=None,max_len=255,pad_id=0,eos_id=1):
+    def __init__(self, input_dir,transforms=None,tokenizer=None):
         self.input_dir = input_dir
         self.transforms = transforms
         self.tokenizer = tokenizer
-        self.max_len = max_len
-        self.pad_id = pad_id
-        self.eos_id = eos_id
         self.inited = False
         self.length = 0
         self.init_files()
@@ -116,6 +113,11 @@ class ZipFastDataset(Dataset):
         return image, features
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='ZipFastDataset')
+    parser.add_argument('--input_dir', type=str, default='/media/yueyulin/TOUROS/images/laion400m_zip', help='input_dir')
+    args = parser.parse_args()
+    input_dir = args.input_dir
     import sys
     import os
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -155,8 +157,9 @@ if __name__ == '__main__':
 
     rwkv_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tokenizer','rwkv_vocab_v20230424.txt')
     tokenizer = TRIE_TOKENIZER(rwkv_file)
-    dataset = ZipFastDataset('/media/yueyulin/TOUROS/images/laion400m_zip',tokenizer=tokenizer,transforms=transform)
-    print(len(dataset))
+    dataset = ZipFastDataset(input_dir,tokenizer=tokenizer,transforms=transform)
+    length = len(dataset)
+    print(length)
     import time 
     elapsed = time.time()
     image,features = dataset[0]
@@ -165,49 +168,49 @@ if __name__ == '__main__':
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[1000000]
+    image,features = dataset[length//2]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[2000000]
+    image,features = dataset[length//3]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[3000000]
+    image,features = dataset[length//4]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[4000000]
+    image,features = dataset[length//5]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[5000000]
+    image,features = dataset[length//6]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[6000000]
+    image,features = dataset[length//7]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[7000000]
+    image,features = dataset[length//8]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
 
     elapsed = time.time()
-    image,features = dataset[8000000]
+    image,features = dataset[length-1]
     print("time:", time.time() - elapsed)
     print(features)
     print(image.shape)
