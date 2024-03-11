@@ -25,6 +25,8 @@ pub fn tar_to_zip(input_dir: &str, output_dir: &str) -> io::Result<()> {
         let path = entry.path();
         if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("tar") {
             let tar_file = File::open(&path)?;
+            // print the file name
+            println!("Processing file: {:?}", path.file_stem().unwrap().to_str().unwrap());
             let mut archive = Archive::new(tar_file);
 
             let zip_file_name = path.file_stem().unwrap().to_str().unwrap().to_owned() + ".zip";

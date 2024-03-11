@@ -36,7 +36,7 @@ def main(args):
     # Load model:
     latent_size = args.image_size // 8
     model = DiRwkv_models[args.model](
-        input_size=latent_size
+        input_size=latent_size,use_pos_emb=args.is_pos_emb
     ).to(device)
     # Auto-download a pre-trained model or load a custom DiT checkpoint from train.py:
     ckpt_path = args.ckpt
@@ -113,11 +113,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, choices=list(DiRwkv_models.keys()), default="DiRwkv_XL_2")
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")
-    parser.add_argument("--image-size", type=int, choices=[256, 512], default=512)
-    parser.add_argument("--cfg-scale", type=float, default=4)
+    parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
+    parser.add_argument("--cfg-scale", type=float, default=7)
     parser.add_argument("--num-sampling-steps", type=int, default=250)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--ckpt", type=str, default='/media/yueyulin/KINGSTON/models/DiRwkv6/DiR-XL-2/DiT-XL-2_nlayer_28_model.pth',
-                        help="Optional path to a DiT checkpoint (default: auto-download a pre-trained DiT-XL/2 model).")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--ckpt", type=str, default='/media/yueyulin/KINGSTON/tmp/DiRwkv_XL_2/epoch_0_step_20000/model.pth')
+    parser.add_argument("--is-pos-emb", action="store_true",default=False)
     args = parser.parse_args()
     main(args)

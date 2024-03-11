@@ -53,7 +53,7 @@ class ZipFastDataset(Dataset):
             zip_reader = zip_fast_reader.ZipReader(os.path.join(self.input_dir,zip_file))
             #print read_filenames and time in blue
             print('\033[94m' + 'read_filenames' + '\033[0m', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            filenames = zip_reader.read_filenames()
+            filenames = set(zip_reader.read_filenames())
             for filename in filenames:
                 if filename.endswith('.jpg') or filename.endswith('.png') or filename.endswith('.jpeg'):
                     last_dot_idx = filename.rfind('.')

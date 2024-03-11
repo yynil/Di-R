@@ -344,7 +344,7 @@ def main(args):
     logger.info(f"Training for {args.epochs} epochs...")
     call_back_args = copy.copy(model.args)
     call_back_args.check_val_every_n_epoch = int(1e20)
-    call_back_args.log_every_n_steps = 10000
+    call_back_args.log_every_n_steps = args.log_every_n_steps
     call_back_args.num_sanity_val_steps = 0
     call_back_args.enable_checkpointing = False
     call_back_args.accumulate_grad_batches = 1
@@ -361,8 +361,8 @@ def main(args):
     call_back_args.proj_dir = experiment_dir
     call_back_args.weight_decay_final = -1
     call_back_args.micro_bsz = args.global_batch_size
-    call_back_args.num_nodes = 1
-    call_back_args.devices = 1
+    call_back_args.num_nodes = args.num_nodes
+    call_back_args.devices = args.devices
     call_back_args.trainable_dir_output = experiment_dir
     call_back_args.real_bsz = int(call_back_args.num_nodes) * int(call_back_args.devices) * call_back_args.micro_bsz
     call_back_args.epoch_steps = len(dataset) // call_back_args.real_bsz
@@ -372,7 +372,7 @@ def main(args):
     call_backs = [YueyuTrainCallback(call_back_args)]
     # call_backs[0].set_ema(ema)
     device = 'cuda'
-    trainer = Trainer(accelerator=device,strategy="deepspeed_stage_2_offload",devices='auto',num_nodes=1,precision='bf16-mixed',
+    trainer = Trainer(accelerator=device,strategy="deepspeed_stage_2_offload",devices='auto',num_nodes=args.num_nodes,precision='bf16-mixed',
             logger=call_back_args.logger,callbacks=call_backs,max_epochs=call_back_args.max_epochs,check_val_every_n_epoch=call_back_args.check_val_every_n_epoch,num_sanity_val_steps=call_back_args.num_sanity_val_steps,
             log_every_n_steps=call_back_args.log_every_n_steps,enable_checkpointing=call_back_args.enable_checkpointing,accumulate_grad_batches=call_back_args.accumulate_grad_batches,gradient_clip_val=call_back_args.gradient_clip_val)
     trainer.fit(model,loader)
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     parser.add_argument("--data-path", type=str, default='/media/yueyulin/TOUROS/images/laion400m_zip')
     parser.add_argument("--results-dir", type=str, default="results")
     parser.add_argument("--model", type=str, choices=list(DiRwkv_models.keys()), default="DiRwkv_XL_2")
-    parser.add_argument("--image-size", type=int, choices=[256, 512], default=512)
+    parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
     parser.add_argument("--epochs", type=int, default=1400)
     parser.add_argument("--global-batch-size", type=int, default=8)
     parser.add_argument("--global-seed", type=int, default=0)
@@ -395,6 +395,9 @@ if __name__ == "__main__":
     parser.add_argument("--ckpt-every", type=int, default=50_000)
     parser.add_argument("--is-zip", action="store_true",default=True)
     parser.add_argument("--is-pos-emb",action="store_true",default=False)
+    parser.add_argument("--devices",type=int,default=1) 
+    parser.add_argument("--num_nodes",type=int,default=1)
+    parser.add_argument("--log_every_n_steps",type=int,default=10000)
     args = parser.parse_args()
     main(args)
 # Copyright (c) Meta Platforms, Inc. and affiliates.
