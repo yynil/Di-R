@@ -56,3 +56,17 @@ Meanwhile Zip file has an internal index which can be used to find the offset of
     print('elapsed_time0:', elapsed_time0)
    ```
 
+### Install pre-built wheels
+Download the pre-built wheels from Baidu Cloud as follows:
+
+链接: https://pan.baidu.com/s/1uzrWtwf5I9rIpMqgzjo3Kg?pwd=k2kc 提取码: k2kc 
+--来自百度网盘超级会员v6的分享
+
+Install the wheel:
+``` bash
+pip install zip_fast_reader-0.1.0-cp310-cp310-manylinux_2_34_x86_64.whl
+```
+
+This wheel file is built for Python 3.10 on 64bits Linux.
+
+To ensure the installation is successful, run the above python code to verify the it.
