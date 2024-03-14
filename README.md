@@ -186,6 +186,16 @@ python train_all_deepspeed.py --results-dir $model_output_path --data-path $ZIP_
 
 Since all of the images' resolution is 256x256, the maxium patches is 64, so we can enlarge the batch size to train the model.
 
+#### Training with ImageNet plus skip connection and residual connection
+Following the https://github.com/feizc/DiS , I add the skip connection and residual connection to the model.
+To train with ImageNet, I use the following script:
+```
+python train_all_deepspeed_v1.py --global-batch-size 20
+```
+
+In this version, both ema and model will be saved.
+
+
 ### Inference script
 
 The sample.py is used to generate the sample images.
