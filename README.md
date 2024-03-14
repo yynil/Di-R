@@ -195,6 +195,18 @@ python train_all_deepspeed_v1.py --global-batch-size 20
 
 In this version, both ema and model will be saved.
 
+#### Training with open_clip text encoder puls skip connection and residual connection
+
+Requirement:
+Install open_clip
+```
+pip install open_clip_torch
+```
+
+Train model using the following script:
+```
+python train_all_deepspeed_v2.py --results-dir $model_output_path --data-path $ZIP_ROOT --global-batch-size 24
+```
 
 ### Inference script
 
