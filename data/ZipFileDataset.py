@@ -107,7 +107,10 @@ class ZipFastDataset(Dataset):
         zip_reader = self.zip_readers_dict[zip_file]
         image_content =  zip_reader.read_file_in_zip(image_file)
         text_content =  str(bytearray(zip_reader.read_file_in_zip(text_file)),'utf-8')
-        features = self.tokenizer.encode(text_content)
+        if self.tokenizer is not None:
+            features = self.tokenizer.encode(text_content)
+        else:
+            features = text_content
         image = Image.open(io.BytesIO(bytearray(image_content)))
         if self.transforms:
             image = self.transforms(image)
@@ -119,7 +122,7 @@ class ZipFastDataset(Dataset):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='ZipFastDataset')
-    parser.add_argument('--input_dir', type=str, default='/media/yueyulin/TOUROS/images/laion400m_zip', help='input_dir')
+    parser.add_argument('--input_dir', type=str, default='/media/yueyulin/TOUROS/images/laion400mZip', help='input_dir')
     args = parser.parse_args()
     input_dir = args.input_dir
     import sys
@@ -149,7 +152,8 @@ if __name__ == '__main__':
         crop_y = (arr.shape[0] - image_size) // 2
         crop_x = (arr.shape[1] - image_size) // 2
         return Image.fromarray(arr[crop_y: crop_y + image_size, crop_x: crop_x + image_size])
-    
+    import open_clip
+    tokenizer = open_clip.get_tokenizer('ViT-B-32')
     image_size = 512
     transform = transforms.Compose([
         transforms.Lambda(lambda pil_image: center_crop_arr(pil_image, image_size)),
@@ -159,8 +163,6 @@ if __name__ == '__main__':
     ])
 
 
-    rwkv_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tokenizer','rwkv_vocab_v20230424.txt')
-    tokenizer = TRIE_TOKENIZER(rwkv_file)
     dataset = ZipFastDataset(input_dir,tokenizer=tokenizer,transforms=transform)
     length = len(dataset)
     print(length)
