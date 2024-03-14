@@ -305,7 +305,7 @@ def main(args):
         images, input_ids = zip(*batch)
         new_ids = []
         for input_id in input_ids:
-            if len(input_id) > max_len:
+            if len(input_id) >= max_len:
                 input_id = input_id[:max_len-1]
             input_id.append(eos_id)
             new_ids.append(input_id)
