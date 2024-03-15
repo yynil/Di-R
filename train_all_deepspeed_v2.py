@@ -61,7 +61,7 @@ def update_ema(ema_model, model, decay=0.9999):
     model_params = OrderedDict(model.named_parameters())
     for name, param in model_params.items():
         if name in ema_params:
-            ema_params[name].mul_(decay).add_(param.data.to('cpu'), alpha=1 - decay)
+            ema_params[name].mul_(decay).add_(param.data, alpha=1 - decay)
 
 def requires_grad(model, flag=True):
     """
@@ -196,6 +196,8 @@ class YueyuTrainCallback(pl.Callback):
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         args = self.args
+        if args.ema.device != pl_module.device:
+            args.ema = args.ema.to(pl_module.device)
         update_ema(args.ema, pl_module, decay=0.9999)
         token_per_step = args.ctx_len * args.real_bsz
         real_step = trainer.global_step + args.epoch_begin * args.epoch_steps
