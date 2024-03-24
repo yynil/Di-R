@@ -1,0 +1,20 @@
+[package]
+name = "imagenet_rocksdb"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rocksdb = "0.22.0"
+indicatif = "0.17.8"
+pyo3 = { version = "0.16", features = ["extension-module"] }
+
+[[bin]]
+name = "create_rocks_db_imagenet"
+path = "src/bin/create_rocks_db_imagenet.rs"
+
+[lib]
+name = "imagenet_rocksdb"
+crate-type = ["cdylib"]
+
+[package.metadata.maturin]
+require-dist = ["maturin"] 

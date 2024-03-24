@@ -43,7 +43,7 @@ from diffusion import create_diffusion
 from diffusers.models import AutoencoderKL
 import pytorch_lightning as pl
 import math
-from data.ZipFileDataset import ZipFastDataset
+from data.ImageNetRocksDbDataset import ImageNetRocksDBDS
 
 
 #################################################################################
@@ -55,7 +55,6 @@ def update_ema(ema_model, model, decay=0.9999):
     """
     Step the EMA model towards the current model.
     """
-    pass
     ema_params = OrderedDict(ema_model.named_parameters())
     model_params = OrderedDict(model.named_parameters())
     for name, param in model_params.items():
@@ -274,6 +273,11 @@ def main(args):
 
     model = DiRwkv_models[args.model](input_size=latent_size,deepspeed_offload=True,use_pos_emb=args.is_pos_emb)
     model.convert_bfloat16()
+    if args.ckpt is not None:
+        print('load from ckpt',args.ckpt)
+        model_params = torch.load(args.ckpt, map_location="cpu")
+        info = model.load_state_dict(model_params, strict=False)
+        print('loaded model',info)
     # Note that parameter initialization is done within the DiT constructor
     ema = deepcopy(model)  # Create an EMA of the model for use after training
     requires_grad(ema, False)
@@ -296,7 +300,10 @@ def main(args):
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)
     ])
 
-    dataset = ImageFolder(args.data_path, transform=transform)
+    if args.is_rocks_db:
+        dataset = ImageNetRocksDBDS(args.data_path, transforms=transform)
+    else:
+        dataset = ImageFolder(args.data_path, transform=transform)
 
     
     loader = DataLoader(
@@ -383,6 +390,7 @@ if __name__ == "__main__":
     parser.add_argument("--devices",type=int,default=1) 
     parser.add_argument("--num_nodes",type=int,default=1)
     parser.add_argument("--log_every_n_steps",type=int,default=10000)
+    parser.add_argument("--is_rocks_db",action="store_true",default=False)
+    parser.add_argument("--ckpt", type=str, default=None)
     args = parser.parse_args()
     main(args)
-# Copyright (c) Meta Platforms, Inc. and affiliates.
