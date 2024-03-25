@@ -147,6 +147,8 @@ zipp==3.17.0
  ```
 
  #### Download data and extract data
+
+ ##### LAION data
  The data is downloaded from Baidu Cloud. After extracting the data, we assume the data is extracted in ZIP_ROOT. The data structure looks like:
 
  The baidu cloud link is :
@@ -167,7 +169,16 @@ zipp==3.17.0
 
 meta.txt contains all the information which line include zip_file's relative path, the image file name in zip file and captioned txt file in zip file. We use a customized zip dataset to read data directly in zip file to save disk io sacrificed with CPU usage. Furthermore we can split the meta.txt into slices to enable multiple nodes data distribution.
 
-
+##### ImageNet data
+Download the ImageNet 2012 data from ImageNet website. The data structure looks like:
+```
+IMAGENET_ROOT/
+    |-- n0144076/
+    |-- n0144353/
+    |-- ...
+    |-- n0212304/
+```
+The script train_all_deepspeed_v1.py is used to train the class conditioned model with IMAGENET data.
 
 #### Training script
 

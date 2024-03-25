@@ -478,6 +478,16 @@ rwkvArgs.warmup_steps = 50
 rwkvArgs.tiny_att_dim = 1024
 
 
+def DiRwkv_XXL_2(**kwargs):
+    #setup rwkv args
+    args = copy.copy(rwkvArgs)
+    args.n_layer = 48
+    args.tiny_att_layer = args.n_layer
+    args.n_embd = 1536
+    args.dim_ffn = 6144
+    args.dim_att = 1536
+    return DiRWKV(args,depth=args.n_layer, hidden_size=1536, patch_size=2, **kwargs)
+
 def DiRwkv_XL_2(**kwargs):
     #setup rwkv args
     args = copy.copy(rwkvArgs)
@@ -488,12 +498,25 @@ def DiRwkv_XL_2(**kwargs):
     args.dim_att = 1536
     return DiRWKV(args,depth=args.n_layer, hidden_size=1536, patch_size=2, **kwargs)
 
+def DiRwkv_S_2(**kwargs):
+    #setup rwkv args
+    args = copy.copy(rwkvArgs)
+    args.n_layer = 24
+    args.tiny_att_layer = args.n_layer
+    args.n_embd = 768
+    args.dim_ffn = 3072
+    args.dim_att = 768
+    args.tiny_att_dim = 768
+    return DiRWKV(args,depth=args.n_layer, hidden_size=768, patch_size=2, **kwargs)
+
 
 
 
 
 DiRwkv_models = {
-    'DiRwkv_XL_2': DiRwkv_XL_2
+    'DiRwkv_XL_2': DiRwkv_XL_2,
+    'DiRwkv_XXL_2': DiRwkv_XXL_2,
+    'DiRwkv_S_2': DiRwkv_S_2,
 }
 
 from tokenizer.rwkv_tokenizer import TRIE_TOKENIZER
