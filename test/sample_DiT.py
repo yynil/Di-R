@@ -11,6 +11,10 @@ evaluation metrics via the ADM repo: https://github.com/openai/guided-diffusion/
 
 For a simple single-GPU/CPU sampling script, see sample.py.
 """
+import sys
+
+sys.path.append('..')
+
 import torch
 import torch.distributed as dist
 from models_v2 import DiRwkv_models as DiT_models
@@ -22,6 +26,7 @@ from PIL import Image
 import numpy as np
 import math
 import argparse
+import open_clip
 
 
 def create_npz_from_sample_folder(sample_dir, num=50_000):
@@ -41,11 +46,12 @@ def create_npz_from_sample_folder(sample_dir, num=50_000):
     return npz_path
 
 
+@torch.distributed.elastic.multiprocessing.errors.record
 def main(args):
     """
     Run sampling.
     """
-    torch.backends.cuda.matmul.allow_tf32 = args.tf32  # True: fast but may lead to some small numerical differences
+    # torch.backends.cuda.matmul.allow_tf32 = args.tf32  # True: fast but may lead to some small numerical differences
     assert torch.cuda.is_available(), "Sampling with DDP requires at least one GPU. sample.py supports CPU-only usage"
     torch.set_grad_enabled(False)
 
@@ -58,6 +64,8 @@ def main(args):
     torch.cuda.set_device(device)
     print(f"Starting rank={rank}, seed={seed}, world_size={dist.get_world_size()}.")
 
+    tokenizer = open_clip.get_tokenizer('ViT-B-32')
+
     if args.ckpt is None:
         assert args.model == "DiT-XL/2", "Only DiT-XL/2 models are available for auto-download."
         assert args.image_size in [256, 512]
@@ -67,12 +75,14 @@ def main(args):
     latent_size = args.image_size // 8
     model = DiT_models[args.model](
         input_size=latent_size,
-        num_classes=args.num_classes
+        deepspeed_offload=True,
+        use_pos_emb=args.is_pos_emb
     ).to(device)
     # Auto-download a pre-trained model or load a custom DiT checkpoint from train.py:
     ckpt_path = args.ckpt or f"DiT-XL-2-{args.image_size}x{args.image_size}.pt"
     state_dict = torch.load(ckpt_path, map_location='cpu')
-    model.load_state_dict(state_dict)
+    model.load_state_dict(state_dict,strict=False)
+    model = model.bfloat16()
     model.eval()  # important!
     diffusion = create_diffusion(str(args.num_sampling_steps))
     vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-{args.vae}").to(device)
@@ -104,21 +114,24 @@ def main(args):
     pbar = range(iterations)
     pbar = tqdm(pbar) if rank == 0 else pbar
     total = 0
+    fixed_y_len = 77
     for _ in pbar:
         # Sample inputs:
         z = torch.randn(n, model.in_channels, latent_size, latent_size, device=device)
-        y = torch.randint(0, args.num_classes, (n,), device=device)
+        y = torch.randint(0, args.num_classes, (n, fixed_y_len), device=device)
 
         # Setup classifier-free guidance:
         if using_cfg:
             z = torch.cat([z, z], 0)
-            y_null = torch.tensor([1000] * n, device=device)
+            y_null = torch.tensor([[tokenizer.eot_token_id] + [0] * (fixed_y_len-1)] * n, device=device)
             y = torch.cat([y, y_null], 0)
             model_kwargs = dict(y=y, cfg_scale=args.cfg_scale)
             sample_fn = model.forward_with_cfg
         else:
             model_kwargs = dict(y=y)
             sample_fn = model.forward
+        
+        # print(f'{y.shape = }, {z.shape = }')
 
         # Sample images:
         samples = diffusion.p_sample_loop(
@@ -161,5 +174,6 @@ if __name__ == "__main__":
                         help="By default, use TF32 matmuls. This massively accelerates sampling on Ampere GPUs.")
     parser.add_argument("--ckpt", type=str, default=None,
                         help="Optional path to a DiT checkpoint (default: auto-download a pre-trained DiT-XL/2 model).")
+    parser.add_argument("--is-pos-emb", action="store_true", default=False)
     args = parser.parse_args()
     main(args)

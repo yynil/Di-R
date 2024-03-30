@@ -1,2 +1,5 @@
-
+/test/chpt
+/test/samples
 __pycache__/
+nohup.out
+sample_*.png

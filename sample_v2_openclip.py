@@ -63,19 +63,20 @@ def main(args):
     prompts = ['A black motorcycle','A cat','a motorcycle','a bike in a parking lot']
     tokenizer = open_clip.get_tokenizer('ViT-B-32')
     y = tokenizer(prompts).to(device)
-    print(y)
+    print(f'{y.shape = }')
     n = y.shape[0]
     z = torch.randn(n, 4, latent_size, latent_size, device=device)
     z = torch.cat([z, z], 0)
     fixed_y_len = 77
     y_null = torch.tensor([[tokenizer.eot_token_id] + [0] * (fixed_y_len-1)] * n, device=device)
-    print(y_null)
+    print(f'{y_null.shape = }')
     # y_null = torch.tensor([[1] * max_length] * n, device=device)
     y = torch.cat([y, y_null], 0)
-    print(y)
+    print(f'{y.shape = }')
     model_kwargs = dict(y=y, cfg_scale=args.cfg_scale)
-    print(model_kwargs)
+    # print(model_kwargs)
     from torch.amp import autocast
+    print(f'{y.shape = }, {z.shape = }')
     with autocast(device_type=device,dtype=torch.bfloat16):
         samples = diffusion.p_sample_loop(
             model.forward_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True, device=device

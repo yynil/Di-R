@@ -284,10 +284,7 @@ class DiRWKV(pl.LightningModule):
         y: (N,) tensor of labels
         """
         args = self.args
-        if self.pos_embed is None:
-            x = self.x_embedder(x.bfloat16())
-        else:
-            x = self.x_embedder(x.bfloat16()) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
+        x = self.x_embedder(x.bfloat16())
         t_emb = self.time_embed(timestep_embedding(t, args.n_embd).bfloat16())                   # (N, D)
         t_emb = t_emb.unsqueeze(dim=1)
         x = torch.cat([t_emb,x],dim=1)
@@ -296,6 +293,8 @@ class DiRWKV(pl.LightningModule):
             y_emb = self.label_emb(y, self.training)    # (N, D)
             y_emb = y_emb.unsqueeze(dim=1)
             x = torch.cat([y_emb,x],dim=1)
+        if self.pos_embed is not None:
+            x = x + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
         skips = []
         x_emb = x
         for block in self.in_blocks:
